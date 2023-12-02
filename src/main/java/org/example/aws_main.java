@@ -8,6 +8,7 @@ package org.example;
  *
  */
 
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Scanner;
 import com.amazonaws.AmazonClientException;
@@ -35,6 +36,24 @@ import com.amazonaws.services.ec2.model.DescribeImagesRequest;
 import com.amazonaws.services.ec2.model.DescribeImagesResult;
 import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.Filter;
+import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
+import com.amazonaws.services.ec2.model.CreateSecurityGroupRequest;
+import com.amazonaws.services.ec2.model.CreateSecurityGroupResult;
+import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
+import com.amazonaws.services.ec2.model.SecurityGroup;
+import com.amazonaws.services.ec2.model.AuthorizeSecurityGroupIngressRequest;
+import com.amazonaws.services.ec2.model.IpPermission;
+import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
+import com.amazonaws.services.ec2.model.DeleteSecurityGroupRequest;
+
+import com.amazonaws.services.ec2.model.*;
+
+import java.util.List;
+
+
+
 
 public class aws_main {
 
@@ -54,7 +73,7 @@ public class aws_main {
         }
         ec2 = AmazonEC2ClientBuilder.standard()
                 .withCredentials(credentialsProvider)
-                .withRegion("us-east-1b")	/* check the region at AWS console */
+                .withRegion("us-east-1")	/* check the region at AWS console */
                 .build();
     }
 
@@ -77,6 +96,9 @@ public class aws_main {
             System.out.println("  3. start instance               4. available regions      ");
             System.out.println("  5. stop instance                6. create instance        ");
             System.out.println("  7. reboot instance              8. list images            ");
+            System.out.println("  9. condor_status               10. terminate instance     ");
+            System.out.println(" 11. list security group         12. create security group  ");
+            System.out.println(" 13. delete security group                                  ");
             System.out.println("                                 99. quit                   ");
             System.out.println("------------------------------------------------------------");
 
@@ -145,6 +167,32 @@ public class aws_main {
                 case 8:
                     listImages();
                     break;
+
+                case 9:
+                    runCondorStatus();
+                    break;
+
+                case 10:
+                    System.out.print("Enter instance id: ");
+                    if(id_string.hasNext())
+                        instance_id = id_string.nextLine();
+
+                    if(!instance_id.isBlank())
+                        terminateInstance(instance_id);
+                    break;
+
+                case 11:
+                    listSecurityGroups();
+                    break;
+
+                case 12:
+                    createSecurityGroup();
+                    break;
+
+                case 13:
+                    deleteSecurityGroup();
+                    break;
+
 
                 case 99:
                     System.out.println("bye!");
@@ -217,7 +265,8 @@ public class aws_main {
 
     }
 
-    public static void startInstance(String instance_id)
+    public static void
+    startInstance(String instance_id)
     {
 
         System.out.printf("Starting .... %s\n", instance_id);
@@ -332,7 +381,7 @@ public class aws_main {
         DescribeImagesRequest request = new DescribeImagesRequest();
         ProfileCredentialsProvider credentialsProvider = new ProfileCredentialsProvider();
 
-        request.getFilters().add(new Filter().withName("name").withValues("htcondor-slave-image"));
+        request.getFilters().add(new Filter().withName("name").withValues("aws-htcondor-slave"));
         request.setRequestCredentialsProvider(credentialsProvider);
 
         DescribeImagesResult results = ec2.describeImages(request);
@@ -341,6 +390,125 @@ public class aws_main {
             System.out.printf("[ImageID] %s, [Name] %s, [Owner] %s\n",
                     images.getImageId(), images.getName(), images.getOwnerId());
         }
+    }
 
+    public static void runCondorStatus() {
+
+    }
+
+
+    public static void terminateInstance(String instance_id){
+        final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
+
+        DryRunSupportedRequest<TerminateInstancesRequest> dryRequest =
+                () -> {
+                    TerminateInstancesRequest request = new TerminateInstancesRequest()
+                            .withInstanceIds(instance_id);
+
+                    return request.getDryRunRequest();
+                };
+
+        try {
+            TerminateInstancesRequest request = new TerminateInstancesRequest()
+                    .withInstanceIds(instance_id);
+
+            ec2.terminateInstances(request);
+            System.out.printf("Successfully terminated instance %s\n", instance_id);
+
+        } catch (Exception e) {
+            System.out.println("Exception: " + e.toString());
+        }
+    }
+
+    public static void listSecurityGroups() {
+        AmazonEC2 ec2 = AmazonEC2Client.builder()
+                .withCredentials(DefaultAWSCredentialsProviderChain.getInstance())
+                .build();
+
+        DescribeSecurityGroupsRequest describeSecurityGroupsRequest = new DescribeSecurityGroupsRequest();
+        DescribeSecurityGroupsResult describeSecurityGroupsResult = ec2.describeSecurityGroups(describeSecurityGroupsRequest);
+
+        System.out.println("Security Groups:");
+        for (SecurityGroup securityGroup : describeSecurityGroupsResult.getSecurityGroups()) {
+            System.out.println("ID: " + securityGroup.getGroupId());
+            System.out.println("Name: " + securityGroup.getGroupName());
+            System.out.println("Description: " + securityGroup.getDescription());
+            System.out.println("VPC ID: " + securityGroup.getVpcId());
+            System.out.println("Inbound Rules:");
+            for (IpPermission ipPermission : securityGroup.getIpPermissions()) {
+                System.out.println("  Protocol: " + ipPermission.getIpProtocol());
+                System.out.println("  Port Range: " + ipPermission.getFromPort() + " - " + ipPermission.getToPort());
+                System.out.println("  Source: " + ipPermission.getIpRanges());
+            }
+            System.out.println("Outbound Rules:");
+            for (IpPermission ipPermission : securityGroup.getIpPermissionsEgress()) {
+                System.out.println("  Protocol: " + ipPermission.getIpProtocol());
+                System.out.println("  Port Range: " + ipPermission.getFromPort() + " - " + ipPermission.getToPort());
+                System.out.println("  Destination: " + ipPermission.getIpRanges());
+            }
+            System.out.println("----------");
+        }
+    }
+
+    public static void createSecurityGroup(){
+        Scanner scanner = new Scanner(System.in);
+
+        System.out.print("Enter security group name : ");
+        String securityGroupName = scanner.nextLine();
+
+        System.out.print("Enter security group description : ");
+        String description = scanner.nextLine();
+
+        AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
+
+        CreateSecurityGroupRequest createSecurityGroupRequest = new CreateSecurityGroupRequest()
+                .withGroupName(securityGroupName)
+                .withDescription(description);
+
+        CreateSecurityGroupResult createSecurityGroupResult = ec2.createSecurityGroup(createSecurityGroupRequest);
+
+        String securityGroupId = createSecurityGroupResult.getGroupId();
+        System.out.println("Security Group ID: " + securityGroupId);
+
+        authorizeIngress(ec2, securityGroupId, "tcp", 22, 22, "0.0.0.0/0");
+    }
+    private static void authorizeIngress(AmazonEC2 ec2, String securityGroupId,
+                                         String protocol, int fromPort, int toPort, String cidrIp) {
+
+        IpPermission ipPermission = new IpPermission()
+                .withIpProtocol(protocol)
+                .withFromPort(fromPort)
+                .withToPort(toPort)
+                .withIpRanges(cidrIp);
+
+        AuthorizeSecurityGroupIngressRequest authorizeSecurityGroupIngressRequest =
+                new AuthorizeSecurityGroupIngressRequest()
+                        .withGroupId(securityGroupId)
+                        .withIpPermissions(ipPermission);
+
+        ec2.authorizeSecurityGroupIngress(authorizeSecurityGroupIngressRequest);
+    }
+
+    public static void deleteSecurityGroup() {
+        // 사용자로부터 입력 받기
+        Scanner scanner = new Scanner(System.in);
+
+        System.out.print("Enter security group ID : ");
+        String securityGroupId = scanner.nextLine();
+
+        // AWS EC2 클라이언트 생성
+        AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
+
+        // 보안 그룹 삭제 요청
+        DeleteSecurityGroupRequest deleteSecurityGroupRequest = new DeleteSecurityGroupRequest()
+                .withGroupId(securityGroupId);
+
+        try {
+            ec2.deleteSecurityGroup(deleteSecurityGroupRequest);
+            System.out.println("Security Group deleted successfully.");
+
+        } catch (Exception e) {
+            System.out.println("Error deleting security group: " + e.getMessage());
+        }
     }
 }
