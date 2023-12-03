@@ -8,56 +8,23 @@ package org.example;
  *
  */
 
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.Scanner;
+import java.util.*;
+import java.io.*;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
-import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
-import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.ec2.model.Reservation;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
-import com.amazonaws.services.ec2.model.DescribeRegionsResult;
-import com.amazonaws.services.ec2.model.Region;
-import com.amazonaws.services.ec2.model.AvailabilityZone;
-import com.amazonaws.services.ec2.model.DryRunSupportedRequest;
-import com.amazonaws.services.ec2.model.StopInstancesRequest;
-import com.amazonaws.services.ec2.model.StartInstancesRequest;
-import com.amazonaws.services.ec2.model.InstanceType;
-import com.amazonaws.services.ec2.model.RunInstancesRequest;
-import com.amazonaws.services.ec2.model.RunInstancesResult;
-import com.amazonaws.services.ec2.model.RebootInstancesRequest;
-import com.amazonaws.services.ec2.model.RebootInstancesResult;
-import com.amazonaws.services.ec2.model.DescribeImagesRequest;
-import com.amazonaws.services.ec2.model.DescribeImagesResult;
-import com.amazonaws.services.ec2.model.Image;
-import com.amazonaws.services.ec2.model.Filter;
-import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
-import com.amazonaws.services.ec2.model.CreateSecurityGroupRequest;
-import com.amazonaws.services.ec2.model.CreateSecurityGroupResult;
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
-import com.amazonaws.services.ec2.model.SecurityGroup;
-import com.amazonaws.services.ec2.model.AuthorizeSecurityGroupIngressRequest;
-import com.amazonaws.services.ec2.model.IpPermission;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
-import com.amazonaws.services.ec2.model.DeleteSecurityGroupRequest;
-
 import com.amazonaws.services.ec2.model.*;
-
-import java.util.List;
-
-
-
+import com.jcraft.jsch.*;
 
 public class aws_main {
 
-    static AmazonEC2    ec2;
+    static AmazonEC2 ec2;
+    private static String keyname = "C:/Users/Administrator/Downloads/project-key.pem";
+    private static String publicDNS = "ec2-52-91-92-162.compute-1.amazonaws.com";
 
     private static void init() throws Exception {
 
@@ -73,7 +40,7 @@ public class aws_main {
         }
         ec2 = AmazonEC2ClientBuilder.standard()
                 .withCredentials(credentialsProvider)
-                .withRegion("us-east-1")	/* check the region at AWS console */
+                .withRegion("us-east-1")    /* check the region at AWS console */
                 .build();
     }
 
@@ -85,8 +52,7 @@ public class aws_main {
         Scanner id_string = new Scanner(System.in);
         int number = 0;
 
-        while(true)
-        {
+        while (true) {
             System.out.println("                                                            ");
             System.out.println("                                                            ");
             System.out.println("------------------------------------------------------------");
@@ -98,15 +64,14 @@ public class aws_main {
             System.out.println("  7. reboot instance              8. list images            ");
             System.out.println("  9. condor_status               10. terminate instance     ");
             System.out.println(" 11. list security group         12. create security group  ");
-            System.out.println(" 13. delete security group                                  ");
-            System.out.println("                                 99. quit                   ");
+            System.out.println(" 13. delete security group       99. quit                   ");
             System.out.println("------------------------------------------------------------");
 
             System.out.print("Enter an integer: ");
 
-            if(menu.hasNextInt()){
+            if (menu.hasNextInt()) {
                 number = menu.nextInt();
-            }else {
+            } else {
                 System.out.println("concentration!");
                 break;
             }
@@ -114,7 +79,7 @@ public class aws_main {
 
             String instance_id = "";
 
-            switch(number) {
+            switch (number) {
                 case 1:
                     listInstances();
                     break;
@@ -125,10 +90,10 @@ public class aws_main {
 
                 case 3:
                     System.out.print("Enter instance id: ");
-                    if(id_string.hasNext())
+                    if (id_string.hasNext())
                         instance_id = id_string.nextLine();
 
-                    if(!instance_id.isBlank())
+                    if (!instance_id.isBlank())
                         startInstance(instance_id);
                     break;
 
@@ -138,29 +103,29 @@ public class aws_main {
 
                 case 5:
                     System.out.print("Enter instance id: ");
-                    if(id_string.hasNext())
+                    if (id_string.hasNext())
                         instance_id = id_string.nextLine();
 
-                    if(!instance_id.isBlank())
+                    if (!instance_id.isBlank())
                         stopInstance(instance_id);
                     break;
 
                 case 6:
                     System.out.print("Enter ami id: ");
                     String ami_id = "";
-                    if(id_string.hasNext())
+                    if (id_string.hasNext())
                         ami_id = id_string.nextLine();
 
-                    if(!ami_id.isBlank())
+                    if (!ami_id.isBlank())
                         createInstance(ami_id);
                     break;
 
                 case 7:
                     System.out.print("Enter instance id: ");
-                    if(id_string.hasNext())
+                    if (id_string.hasNext())
                         instance_id = id_string.nextLine();
 
-                    if(!instance_id.isBlank())
+                    if (!instance_id.isBlank())
                         rebootInstance(instance_id);
                     break;
 
@@ -174,10 +139,10 @@ public class aws_main {
 
                 case 10:
                     System.out.print("Enter instance id: ");
-                    if(id_string.hasNext())
+                    if (id_string.hasNext())
                         instance_id = id_string.nextLine();
 
-                    if(!instance_id.isBlank())
+                    if (!instance_id.isBlank())
                         terminateInstance(instance_id);
                     break;
 
@@ -199,7 +164,8 @@ public class aws_main {
                     menu.close();
                     id_string.close();
                     return;
-                default: System.out.println("concentration!");
+                default:
+                    System.out.println("concentration!");
             }
 
         }
@@ -213,11 +179,11 @@ public class aws_main {
 
         DescribeInstancesRequest request = new DescribeInstancesRequest();
 
-        while(!done) {
+        while (!done) {
             DescribeInstancesResult response = ec2.describeInstances(request);
 
-            for(Reservation reservation : response.getReservations()) {
-                for(Instance instance : reservation.getInstances()) {
+            for (Reservation reservation : response.getReservations()) {
+                for (Instance instance : reservation.getInstances()) {
                     System.out.printf(
                             "[id] %s, " +
                                     "[AMI] %s, " +
@@ -235,21 +201,21 @@ public class aws_main {
 
             request.setNextToken(response.getNextToken());
 
-            if(response.getNextToken() == null) {
+            if (response.getNextToken() == null) {
                 done = true;
             }
         }
     }
 
-    public static void availableZones()	{
+    public static void availableZones() {
 
         System.out.println("Available zones....");
         try {
             DescribeAvailabilityZonesResult availabilityZonesResult = ec2.describeAvailabilityZones();
-            Iterator <AvailabilityZone> iterator = availabilityZonesResult.getAvailabilityZones().iterator();
+            Iterator<AvailabilityZone> iterator = availabilityZonesResult.getAvailabilityZones().iterator();
 
             AvailabilityZone zone;
-            while(iterator.hasNext()) {
+            while (iterator.hasNext()) {
                 zone = iterator.next();
                 System.out.printf("[id] %s,  [region] %15s, [zone] %15s\n", zone.getZoneId(), zone.getRegionName(), zone.getZoneName());
             }
@@ -266,8 +232,7 @@ public class aws_main {
     }
 
     public static void
-    startInstance(String instance_id)
-    {
+    startInstance(String instance_id) {
 
         System.out.printf("Starting .... %s\n", instance_id);
         final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
@@ -297,7 +262,7 @@ public class aws_main {
 
         DescribeRegionsResult regions_response = ec2.describeRegions();
 
-        for(Region region : regions_response.getRegions()) {
+        for (Region region : regions_response.getRegions()) {
             System.out.printf(
                     "[region] %15s, " +
                             "[endpoint] %s\n",
@@ -324,9 +289,8 @@ public class aws_main {
             ec2.stopInstances(request);
             System.out.printf("Successfully stop instance %s\n", instance_id);
 
-        } catch(Exception e)
-        {
-            System.out.println("Exception: "+e.toString());
+        } catch (Exception e) {
+            System.out.println("Exception: " + e.toString());
         }
 
     }
@@ -365,9 +329,8 @@ public class aws_main {
             System.out.printf(
                     "Successfully rebooted instance %s", instance_id);
 
-        } catch(Exception e)
-        {
-            System.out.println("Exception: "+e.toString());
+        } catch (Exception e) {
+            System.out.println("Exception: " + e.toString());
         }
 
 
@@ -386,16 +349,54 @@ public class aws_main {
 
         DescribeImagesResult results = ec2.describeImages(request);
 
-        for(Image images :results.getImages()){
+        for (Image images : results.getImages()) {
             System.out.printf("[ImageID] %s, [Name] %s, [Owner] %s\n",
                     images.getImageId(), images.getName(), images.getOwnerId());
         }
     }
 
-    public static void runCondorStatus() {
+public static void runCondorStatus() {
+    try {
+        JSch jsch = new JSch();
 
+        String user = "ec2-user";
+        String host = publicDNS;
+        int port = 22;
+        String privateKey = keyname;
+
+        jsch.addIdentity(privateKey);
+        System.out.println("identity added ");
+
+        Session session = jsch.getSession(user, host, port);
+        System.out.println("session created.");
+
+        session.setConfig("StrictHostKeyChecking", "no");
+        session.setConfig("GSSAPIAuthentication", "no");
+        session.setServerAliveInterval(120 * 1000);
+        session.setServerAliveCountMax(1000);
+        session.setConfig("TCPKeepAlive", "yes");
+
+        session.connect();
+
+        ChannelExec channel = (ChannelExec) session.openChannel("exec");
+        channel.setCommand("sudo su -");
+
+        channel.setInputStream(System.in);
+        channel.setOutputStream(System.out);
+        channel.setErrStream(System.err);
+
+        channel.connect();
+        while (!channel.isEOF()) {
+            // Wait for the channel to complete
+            Thread.sleep(1000);
+        }
+        channel.disconnect();
+
+        session.disconnect();
+    } catch (Exception e) {
+        e.printStackTrace();
     }
-
+}
 
     public static void terminateInstance(String instance_id){
         final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
@@ -490,16 +491,13 @@ public class aws_main {
     }
 
     public static void deleteSecurityGroup() {
-        // 사용자로부터 입력 받기
         Scanner scanner = new Scanner(System.in);
 
         System.out.print("Enter security group ID : ");
         String securityGroupId = scanner.nextLine();
 
-        // AWS EC2 클라이언트 생성
         AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
 
-        // 보안 그룹 삭제 요청
         DeleteSecurityGroupRequest deleteSecurityGroupRequest = new DeleteSecurityGroupRequest()
                 .withGroupId(securityGroupId);
 
