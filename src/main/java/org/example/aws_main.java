@@ -24,7 +24,8 @@ public class aws_main {
 
     static AmazonEC2 ec2;
     private static String keyname = "C:/Users/Administrator/Downloads/project-key.pem";
-    private static String publicDNS = "ec2-52-91-92-162.compute-1.amazonaws.com";
+//    private static String publicDNS = "ec2-54-83-89-251.compute-1.amazonaws.com";
+    private static String publicDNS = "54.237.67.44";
 
     private static void init() throws Exception {
 
@@ -355,48 +356,49 @@ public class aws_main {
         }
     }
 
-public static void runCondorStatus() {
-    try {
-        JSch jsch = new JSch();
+    public static void runCondorStatus() {
+        try {
+            JSch jsch = new JSch();
 
-        String user = "ec2-user";
-        String host = publicDNS;
-        int port = 22;
-        String privateKey = keyname;
+            String user = "ec2-user";
+            String host = publicDNS;
+            int port = 22;
+            String privateKey = keyname;
 
-        jsch.addIdentity(privateKey);
-        System.out.println("identity added ");
+            jsch.addIdentity(privateKey);
 
-        Session session = jsch.getSession(user, host, port);
-        System.out.println("session created.");
+            Session session = jsch.getSession(user, host, port);
 
-        session.setConfig("StrictHostKeyChecking", "no");
-        session.setConfig("GSSAPIAuthentication", "no");
-        session.setServerAliveInterval(120 * 1000);
-        session.setServerAliveCountMax(1000);
-        session.setConfig("TCPKeepAlive", "yes");
+            session.setConfig("StrictHostKeyChecking", "no");
+            session.setConfig("GSSAPIAuthentication", "no");
+            session.setServerAliveInterval(120 * 1000);
+            session.setServerAliveCountMax(1000);
+            session.setConfig("TCPKeepAlive", "yes");
 
-        session.connect();
+            session.connect();
 
-        ChannelExec channel = (ChannelExec) session.openChannel("exec");
-        channel.setCommand("sudo su -");
+            ChannelExec channel = (ChannelExec) session.openChannel("exec");
 
-        channel.setInputStream(System.in);
-        channel.setOutputStream(System.out);
-        channel.setErrStream(System.err);
+            String command = "sudo su -c 'condor_status'";
+            channel.setCommand(command);
 
-        channel.connect();
-        while (!channel.isEOF()) {
-            // Wait for the channel to complete
-            Thread.sleep(1000);
+            channel.setInputStream(null);
+            channel.setOutputStream(System.out);
+            channel.setErrStream(System.err);
+
+            channel.connect();
+
+            while (!channel.isEOF()) {
+                Thread.sleep(1000);
+            }
+
+            channel.disconnect();
+
+            session.disconnect();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        channel.disconnect();
-
-        session.disconnect();
-    } catch (Exception e) {
-        e.printStackTrace();
     }
-}
 
     public static void terminateInstance(String instance_id){
         final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
@@ -448,8 +450,10 @@ public static void runCondorStatus() {
                 System.out.println("  Destination: " + ipPermission.getIpRanges());
             }
             System.out.println("----------");
+            System.out.println();
         }
     }
+
 
     public static void createSecurityGroup(){
         Scanner scanner = new Scanner(System.in);
